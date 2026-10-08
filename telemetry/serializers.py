@@ -28,6 +28,7 @@ class SensorReadingSerializer(serializers.ModelSerializer):
     temperature_c = serializers.SerializerMethodField()
     humidity_percent = serializers.SerializerMethodField()
     bmp_temperature_c = serializers.SerializerMethodField()
+    pressure_pa = serializers.SerializerMethodField()
 
     class Meta:
         model = SensorReading
@@ -52,3 +53,8 @@ class SensorReadingSerializer(serializers.ModelSerializer):
 
     def get_bmp_temperature_c(self, obj):
         return obj.bmp_temp_c
+
+    def get_pressure_pa(self, obj):
+        if obj.pressure_pa is None or obj.pressure_pa <= -2000000000:
+            return None
+        return obj.pressure_pa

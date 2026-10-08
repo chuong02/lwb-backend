@@ -134,6 +134,6 @@ class SensorReading(models.Model):
 
     @property
     def bmp_temp_c(self):
-        if self.bmp_temp_x10 is None:
+        if self.bmp_temp_x10 is None or self.bmp_temp_x10 == -32768:
             return None
         return self.bmp_temp_x10 / 10.0

@@ -135,7 +135,8 @@ class Command(BaseCommand):
         topic,
         payload
     ):
-        if payload.get("record_type") not in ("SENSOR_DATA", "LOCAL"):
+        record_type = payload.get("record_type")
+        if record_type not in ("SENSOR_DATA", "LOCAL") and not payload.get("data"):
             return
 
         gateway_id = payload.get("gateway_id")

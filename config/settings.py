@@ -30,7 +30,11 @@ SECRET_KEY = 'django-insecure-v4o#w&6l4gz0k^dv_-3d5hsspts8d=ctfmq^u5#*k)ls!3jbhi
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv('DJANGO_ALLOWED_HOSTS', '*').split(',')
+    if host.strip()
+]
 
 
 # Application definition
@@ -82,11 +86,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "lwb_monitoring",
-        "USER": "lwb_user",
-        "PASSWORD": "1",
-        "HOST": "127.0.0.1",
-        "PORT": "5432",
+        "NAME": os.getenv("DB_NAME", "lwb_monitoring"),
+        "USER": os.getenv("DB_USER", "lwb_user"),
+        "PASSWORD": os.getenv("DB_PASSWORD", "1"),
+        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+        "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
 
