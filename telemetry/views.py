@@ -9,6 +9,7 @@ from .serializers import NodeSerializer, SensorReadingSerializer
 @api_view(["GET"])
 def node_list(request):
     nodes = Node.objects.select_related("gateway").order_by(
+        "-last_seen",
         "gateway__gateway_id",
         "node_id"
     )
@@ -23,10 +24,13 @@ def node_list(request):
 
 @api_view(["GET"])
 def latest_reading(request, node_id):
+    gateway_id = request.query_params.get("gateway")
+    qs = SensorReading.objects.filter(node__node_id=node_id)
+    if gateway_id:
+        qs = qs.filter(gateway__gateway_id=gateway_id)
+
     reading = (
-        SensorReading.objects
-        .filter(node__node_id=node_id)
-        .select_related("node")
+        qs.select_related("node", "gateway")
         .order_by("-recv_ts_utc")
         .first()
     )
@@ -72,10 +76,13 @@ def history(request, node_id):
     # Tránh request lấy quá nhiều dữ liệu
     limit = min(limit, 1000)
 
+    gateway_id = request.query_params.get("gateway")
+    qs = SensorReading.objects.filter(node__node_id=node_id)
+    if gateway_id:
+        qs = qs.filter(gateway__gateway_id=gateway_id)
+
     readings = (
-        SensorReading.objects
-        .filter(node__node_id=node_id)
-        .select_related("node")
+        qs.select_related("node", "gateway")
         .order_by("-recv_ts_utc")[:limit]
     )
 

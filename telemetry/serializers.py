@@ -20,6 +20,11 @@ class NodeSerializer(serializers.ModelSerializer):
 
 
 class SensorReadingSerializer(serializers.ModelSerializer):
+    gateway_id = serializers.CharField(
+        source="gateway.gateway_id",
+        read_only=True
+    )
+
     node_id = serializers.IntegerField(
         source="node.node_id",
         read_only=True
@@ -35,6 +40,7 @@ class SensorReadingSerializer(serializers.ModelSerializer):
 
         fields = [
             "event_id",
+            "gateway_id",
             "node_id",
             "seq",
             "recv_ts_utc",

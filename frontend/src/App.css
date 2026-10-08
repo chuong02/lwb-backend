@@ -144,3 +144,24 @@
     text-align: left;
   }
 }
+
+.badge-gateway,
+.badge-node,
+.badge-topic,
+.badge-seq {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.badge-topic code {
+  color: #2563eb;
+  font-weight: 600;
+  margin-left: 4px;
+}
+

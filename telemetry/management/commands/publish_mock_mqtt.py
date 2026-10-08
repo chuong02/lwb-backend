@@ -17,6 +17,12 @@ class Command(BaseCommand):
             help="Node ID to simulate (default: 3)"
         )
         parser.add_argument(
+            "--gateway",
+            type=str,
+            default="border-router",
+            help="Gateway ID (default: border-router)"
+        )
+        parser.add_argument(
             "--count",
             type=int,
             default=3,
@@ -31,6 +37,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         node_id = options["node"]
+        gateway_id = options.get("gateway", "border-router")
         count = options["count"]
         interval = options["interval"]
 
@@ -70,8 +77,8 @@ class Command(BaseCommand):
             event_id = base_event_id + i
 
             payload = {
-                "record_type": "SENSOR_DATA",
-                "gateway_id": "GW-SITE1-01",
+                "record_type": "LOCAL",
+                "gateway_id": gateway_id,
                 "event_id": event_id,
                 "source": node_id,
                 "seq": 100 + i,
