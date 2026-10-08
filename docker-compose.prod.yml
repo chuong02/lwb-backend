@@ -1,0 +1,82 @@
+services:
+  # -------------------------------------------------------------
+  # 1. PostgreSQL Database Service
+  # -------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: lwb-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-lwb_monitoring}
+      POSTGRES_USER: ${DB_USER:-lwb_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-1}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-lwb_user} -d ${DB_NAME:-lwb_monitoring}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------
+  # 2. Django REST API Backend (Production WSGI with Gunicorn)
+  # -------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lwb-backend-prod
+    restart: always
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DJANGO_DEBUG=False
+      - DJANGO_ALLOWED_HOSTS=*
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # -------------------------------------------------------------
+  # 3. Telemetry Background Worker (MQTT Consumer to PostgreSQL)
+  # -------------------------------------------------------------
+  mqtt-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lwb-mqtt-consumer-prod
+    restart: always
+    command: python manage.py mqtt_consumer
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+
+  # -------------------------------------------------------------
+  # 4. Frontend Nginx Web Server (Production SPA & Reverse Proxy)
+  # -------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: lwb-frontend-prod
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_prod_data:
+    name: lwb_postgres_prod_data

@@ -1,0 +1,111 @@
+services:
+  # -------------------------------------------------------------
+  # 1. PostgreSQL Database Service
+  # -------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: lwb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-lwb_monitoring}
+      POSTGRES_USER: ${DB_USER:-lwb_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-1}
+    ports:
+      - "${HOST_DB_PORT:-5435}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-lwb_user} -d ${DB_NAME:-lwb_monitoring}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------
+  # 2. Django REST API Backend (Development Mode with Hot Reload)
+  # -------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lwb-backend
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+      - /app/.venv
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DJANGO_DEBUG=True
+      - DJANGO_ALLOWED_HOSTS=*
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # -------------------------------------------------------------
+  # 3. Telemetry Background Worker (MQTT Consumer to PostgreSQL)
+  # -------------------------------------------------------------
+  mqtt-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lwb-mqtt-consumer
+    restart: unless-stopped
+    command: python manage.py mqtt_consumer
+    volumes:
+      - .:/app
+      - /app/.venv
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+
+  # -------------------------------------------------------------
+  # 4. Frontend React + Vite Dashboard (Development with HMR)
+  # -------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: lwb-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+
+  # -------------------------------------------------------------
+  # 5. (Tùy chọn) EMQX Local Broker (Profile: local-mqtt)
+  # Kích hoạt khi chạy: docker compose --profile local-mqtt up
+  # -------------------------------------------------------------
+  emqx:
+    image: emqx/emqx:5.8.5
+    container_name: lwb-emqx
+    profiles:
+      - local-mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "18083:18083" # Dashboard UI (default admin/public)
+
+volumes:
+  postgres_data:
+    name: lwb_postgres_data

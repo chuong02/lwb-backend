@@ -15,10 +15,30 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.http import HttpResponse, JsonResponse
 from django.urls import include, path
 
+
+def root_info_view(request):
+    """Root endpoint serving service discovery & health check info."""
+    return JsonResponse(
+        {
+            "status": "healthy",
+            "service": "lwb-backend",
+            "version": "1.0.0",
+            "endpoints": {
+                "admin": "/admin/",
+                "api_nodes": "/api/nodes/",
+                "api_latest_reading": "/api/nodes/<node_id>/latest/",
+                "api_history": "/api/nodes/<node_id>/history/?limit=100",
+            },
+        }
+    )
+
+
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path("", root_info_view, name="root-info"),
+    path("favicon.ico", lambda request: HttpResponse(status=204), name="favicon"),
+    path("admin/", admin.site.urls),
     path("api/", include("telemetry.urls")),
 ]
