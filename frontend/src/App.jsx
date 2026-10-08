@@ -53,41 +53,6 @@ const RefreshIcon = ({ spin }) => (
   </svg>
 )
 
-// Generate realistic simulated mock data if database is empty
-function generateSimulatedData(nodeId = 1) {
-  const now = Date.now()
-  const history = []
-  for (let i = 20; i >= 0; i--) {
-    const ts = new Date(now - i * 5000)
-    const timeLabel = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    const baseTemp = 26.5 + Math.sin(i * 0.4) * 1.5 + (Math.random() * 0.4 - 0.2)
-    const baseHum = 62.0 + Math.cos(i * 0.3) * 4.0 + (Math.random() * 0.8 - 0.4)
-    history.push({
-      event_id: 104000 + (20 - i),
-      seq: 200 + (20 - i),
-      recv_ts_utc: ts.toISOString(),
-      timeLabel,
-      temperature_c: parseFloat(baseTemp.toFixed(1)),
-      bmp_temperature_c: parseFloat((baseTemp + 0.3).toFixed(1)),
-      humidity_percent: parseFloat(baseHum.toFixed(1)),
-      pressure_pa: 101280 + Math.floor(Math.sin(i * 0.2) * 50),
-      pressure_hpa: parseFloat(((101280 + Math.sin(i * 0.2) * 50) / 100).toFixed(2)),
-      light_raw: 1850 + Math.floor(Math.sin(i * 0.5) * 200)
-    })
-  }
-
-  const latest = history[history.length - 1]
-  return {
-    nodes: [
-      { id: 1, node_id: 1, gateway_id: 'GW-SITE1-01', last_seen: new Date().toISOString() },
-      { id: 2, node_id: 2, gateway_id: 'GW-SITE1-01', last_seen: new Date(Date.now() - 15000).toISOString() },
-      { id: 3, node_id: 5, gateway_id: 'GW-SITE1-01', last_seen: new Date(Date.now() - 45000).toISOString() },
-    ],
-    latest,
-    history
-  }
-}
-
 function App() {
   const [nodes, setNodes] = useState([])
   const [selectedNodeId, setSelectedNodeId] = useState(null)
@@ -96,7 +61,6 @@ function App() {
   const [isAutoRefresh, setIsAutoRefresh] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [lastUpdated, setLastUpdated] = useState(new Date())
-  const [isSimulated, setIsSimulated] = useState(false)
   const [apiConnected, setApiConnected] = useState(false)
 
   // Fetch Node List from Django Backend
@@ -194,30 +158,9 @@ function App() {
     fetchHistory(nodeId)
   }
 
-  // Active display data (either real data or simulated fallback)
-  const displayData = useMemo(() => {
-    if (nodes.length > 0 && !isSimulated) {
-      return {
-        nodes,
-        latest: latestReading,
-        history: historyReadings,
-        isMock: false
-      }
-    }
-
-    // Fallback or explicit simulation
-    const mock = generateSimulatedData(selectedNodeId || 1)
-    return {
-      nodes: nodes.length > 0 ? nodes : mock.nodes,
-      latest: latestReading || mock.latest,
-      history: historyReadings.length > 0 ? historyReadings : mock.history,
-      isMock: nodes.length === 0 || isSimulated
-    }
-  }, [nodes, latestReading, historyReadings, isSimulated, selectedNodeId])
-
   const activeNodeInfo = useMemo(() => {
-    return displayData.nodes.find(n => n.node_id === selectedNodeId) || displayData.nodes[0] || null
-  }, [displayData.nodes, selectedNodeId])
+    return nodes.find(n => n.node_id === selectedNodeId) || nodes[0] || null
+  }, [nodes, selectedNodeId])
 
   return (
     <div className="lwb-dashboard">
@@ -256,14 +199,6 @@ function App() {
             <RefreshIcon spin={isLoading} />
             Làm mới
           </button>
-
-          <button
-            className={`btn ${displayData.isMock ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setIsSimulated(!isSimulated)}
-            title="Bật/Tắt dữ liệu thử nghiệm"
-          >
-            {displayData.isMock ? 'Simulated Preview: ON' : 'Chế độ Demo'}
-          </button>
         </div>
       </header>
 
@@ -272,12 +207,12 @@ function App() {
         <div className="summary-card">
           <span className="summary-card-title">Mạng Gateway</span>
           <span className="summary-card-value">
-            {new Set(displayData.nodes.map(n => n.gateway_id)).size} GW
+            {new Set(nodes.map(n => n.gateway_id)).size} GW
           </span>
         </div>
         <div className="summary-card">
           <span className="summary-card-title">Số Node Cảm Biến</span>
-          <span className="summary-card-value">{displayData.nodes.length} Nodes</span>
+          <span className="summary-card-value">{nodes.length} Nodes</span>
         </div>
         <div className="summary-card">
           <span className="summary-card-title">Node Đang Chọn</span>
@@ -304,8 +239,6 @@ function App() {
             Cơ sở dữ liệu chưa ghi nhận Node nào từ MQTT broker. Worker <code>mqtt-consumer</code> đang lắng nghe trên topic:
             <br />
             <strong>warehouse/site1/lwb/nodes/+/telemetry</strong>.
-            <br />
-            Hệ thống đang hiển thị <strong>Chế độ mô phỏng (Simulated Preview)</strong> để bạn trải nghiệm toàn bộ đồ thị và chỉ số.
           </p>
           <div className="helper-box">
             💡 Gợi ý: Khi Gateway gửi gói tin MQTT đầu tiên, hệ thống sẽ tự động cập nhật Node và số liệu đo đạc thực tế tại đây.
@@ -319,8 +252,8 @@ function App() {
           <span>📡 Danh sách Nodes trong mạng LWB:</span>
         </div>
         <div className="node-chips">
-          {displayData.nodes.map((node) => {
-            const isSelected = (selectedNodeId === node.node_id) || (!selectedNodeId && displayData.nodes[0]?.node_id === node.node_id)
+          {nodes.map((node) => {
+            const isSelected = (selectedNodeId === node.node_id) || (!selectedNodeId && nodes[0]?.node_id === node.node_id)
             return (
               <button
                 key={node.node_id}
@@ -353,12 +286,12 @@ function App() {
           </div>
           <div className="metric-value-row">
             <span className="metric-main-value">
-              {displayData.latest?.temperature_c ?? '--'}
+              {latestReading?.temperature_c ?? '--'}
             </span>
             <span className="metric-unit">°C</span>
           </div>
           <div className="metric-footer">
-            <span>BMP Temp: {displayData.latest?.bmp_temperature_c ?? '--'} °C</span>
+            <span>BMP Temp: {latestReading?.bmp_temperature_c ?? '--'} °C</span>
             <span style={{ color: '#f97316' }}>HDC 1080</span>
           </div>
         </div>
@@ -373,12 +306,12 @@ function App() {
           </div>
           <div className="metric-value-row">
             <span className="metric-main-value">
-              {displayData.latest?.humidity_percent ?? '--'}
+              {latestReading?.humidity_percent ?? '--'}
             </span>
             <span className="metric-unit">%</span>
           </div>
           <div className="metric-footer">
-            <span>Trạng thái: {displayData.latest?.humidity_percent > 70 ? 'Ẩm ướt' : 'Lý tưởng'}</span>
+            <span>Trạng thái: {latestReading?.humidity_percent ? (latestReading.humidity_percent > 70 ? 'Ẩm ướt' : 'Lý tưởng') : '--'}</span>
             <span style={{ color: '#06b6d4' }}>Cảm biến HDC</span>
           </div>
         </div>
@@ -393,12 +326,12 @@ function App() {
           </div>
           <div className="metric-value-row">
             <span className="metric-main-value">
-              {displayData.latest?.pressure_hpa ?? (displayData.latest?.pressure_pa ? (displayData.latest.pressure_pa / 100).toFixed(1) : '--')}
+              {latestReading?.pressure_hpa ?? (latestReading?.pressure_pa ? (latestReading.pressure_pa / 100).toFixed(1) : '--')}
             </span>
             <span className="metric-unit">hPa</span>
           </div>
           <div className="metric-footer">
-            <span>{displayData.latest?.pressure_pa ?? '--'} Pa</span>
+            <span>{latestReading?.pressure_pa ?? '--'} Pa</span>
             <span style={{ color: '#10b981' }}>BMP 280</span>
           </div>
         </div>
@@ -413,12 +346,12 @@ function App() {
           </div>
           <div className="metric-value-row">
             <span className="metric-main-value">
-              {displayData.latest?.light_raw ?? '--'}
+              {latestReading?.light_raw ?? '--'}
             </span>
             <span className="metric-unit">raw</span>
           </div>
           <div className="metric-footer">
-            <span>Packet Seq: #{displayData.latest?.seq ?? '--'}</span>
+            <span>Packet Seq: #{latestReading?.seq ?? '--'}</span>
             <span style={{ color: '#f59e0b' }}>Photodiode</span>
           </div>
         </div>
@@ -434,7 +367,7 @@ function App() {
           </div>
           <div style={{ width: '100%', height: 280 }}>
             <ResponsiveContainer>
-              <AreaChart data={displayData.history} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={historyReadings} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="tempGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#f97316" stopOpacity={0.35}/>
@@ -468,7 +401,7 @@ function App() {
           </div>
           <div style={{ width: '100%', height: 280 }}>
             <ResponsiveContainer>
-              <LineChart data={displayData.history} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <LineChart data={historyReadings} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2c42" />
                 <XAxis dataKey="timeLabel" stroke="#64748b" tick={{ fontSize: 11 }} />
                 <YAxis yAxisId="pressAxis" stroke="#10b981" domain={['auto', 'auto']} tick={{ fontSize: 11 }} />
@@ -490,7 +423,7 @@ function App() {
         <div className="table-header">
           <h3 className="table-title">Lịch Sử Đo Đạc Gần Nhất (Node #{activeNodeInfo ? activeNodeInfo.node_id : '--'})</h3>
           <span style={{ fontSize: '12px', color: '#64748b' }}>
-            Hiển thị {displayData.history.length} bản ghi gần nhất
+            Hiển thị {historyReadings.length} bản ghi gần nhất
           </span>
         </div>
         <div className="table-wrapper">
@@ -508,18 +441,26 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {displayData.history.slice().reverse().slice(0, 10).map((row, idx) => (
-                <tr key={row.event_id || idx}>
-                  <td style={{ color: '#fff', fontWeight: 600 }}>{row.event_id ?? 'N/A'}</td>
-                  <td>#{row.seq ?? 'N/A'}</td>
-                  <td>{row.recv_ts_utc ? new Date(row.recv_ts_utc).toLocaleString() : 'N/A'}</td>
-                  <td style={{ color: '#f97316' }}>{row.temperature_c ?? '--'} °C</td>
-                  <td style={{ color: '#fb923c' }}>{row.bmp_temperature_c ?? '--'} °C</td>
-                  <td style={{ color: '#06b6d4' }}>{row.humidity_percent ?? '--'} %</td>
-                  <td style={{ color: '#10b981' }}>{row.pressure_hpa ? `${row.pressure_hpa} hPa` : (row.pressure_pa ? `${row.pressure_pa} Pa` : '--')}</td>
-                  <td style={{ color: '#f59e0b' }}>{row.light_raw ?? '--'}</td>
+              {historyReadings.length === 0 ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+                    Chưa có bản ghi đo đạc nào cho Node này
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                historyReadings.slice().reverse().slice(0, 10).map((row, idx) => (
+                  <tr key={row.event_id || idx}>
+                    <td style={{ color: '#fff', fontWeight: 600 }}>{row.event_id ?? 'N/A'}</td>
+                    <td>#{row.seq ?? 'N/A'}</td>
+                    <td>{row.recv_ts_utc ? new Date(row.recv_ts_utc).toLocaleString() : 'N/A'}</td>
+                    <td style={{ color: '#f97316' }}>{row.temperature_c ?? '--'} °C</td>
+                    <td style={{ color: '#fb923c' }}>{row.bmp_temperature_c ?? '--'} °C</td>
+                    <td style={{ color: '#06b6d4' }}>{row.humidity_percent ?? '--'} %</td>
+                    <td style={{ color: '#10b981' }}>{row.pressure_hpa ? `${row.pressure_hpa} hPa` : (row.pressure_pa ? `${row.pressure_pa} Pa` : '--')}</td>
+                    <td style={{ color: '#f59e0b' }}>{row.light_raw ?? '--'}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

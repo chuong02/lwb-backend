@@ -1,5 +1,6 @@
 import json
 import os
+import uuid
 
 import paho.mqtt.client as mqtt
 
@@ -14,6 +15,7 @@ MQTT_HOST = os.getenv("MQTT_HOST", "")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "8883"))
 MQTT_USERNAME = os.getenv("MQTT_USERNAME", "")
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
+MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "")
 
 MQTT_CA = os.getenv(
     "MQTT_CA",
@@ -33,9 +35,11 @@ class Command(BaseCommand):
         if not MQTT_HOST:
             raise RuntimeError("MQTT_HOST is not configured")
 
+        client_id = MQTT_CLIENT_ID or f"django-lwb-consumer-{uuid.uuid4().hex[:6]}"
+
         client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
-            client_id="django-lwb-consumer",
+            client_id=client_id,
             protocol=mqtt.MQTTv311,
         )
 
