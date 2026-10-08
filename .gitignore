@@ -21,3 +21,23 @@ dist/
 # IDE
 .vscode/
 .idea/
+
+# Python virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Backup
+*.bak
+
+# Secrets
+.env
+.env.*
+
+# Frontend
+node_modules/
+dist/
