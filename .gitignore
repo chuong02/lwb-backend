@@ -1,0 +1,23 @@
+# Python virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Backup files
+*.bak
+
+# Environment secrets
+.env
+.env.*
+
+# Frontend
+node_modules/
+dist/
+
+# IDE
+.vscode/
+.idea/

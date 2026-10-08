@@ -35,7 +35,7 @@ class Command(BaseCommand):
 
         client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
-            client_id="django-lwb-consumer",
+            client_id=f"django-lwb-wsl-{os.getpid()}",
             protocol=mqtt.MQTTv311,
         )
 
@@ -57,7 +57,6 @@ class Command(BaseCommand):
         client.on_connect = self.on_connect
         client.on_message = self.on_message
         client.on_disconnect = self.on_disconnect
-
         self.stdout.write(
             f"Connecting to MQTT broker "
             f"{MQTT_HOST}:{MQTT_PORT}"
@@ -136,7 +135,7 @@ class Command(BaseCommand):
         topic,
         payload
     ):
-        if payload.get("record_type") != "SENSOR_DATA":
+        if payload.get("record_type") not in ("SENSOR_DATA", "LOCAL"):
             return
 
         gateway_id = payload.get("gateway_id")
@@ -149,7 +148,6 @@ class Command(BaseCommand):
         )
 
         data = payload.get("data", {})
-
         if gateway_id is None:
             raise ValueError("gateway_id missing")
 
@@ -183,21 +181,30 @@ class Command(BaseCommand):
                 "host_time":
                     data.get("time"),
 
-                "hdc_temp_x10":
-                    data.get("hdc_temp_x10"),
+"hdc_temp_x10": (
+    None if data.get("hdc_temp_x10") == -32768
+    else data.get("hdc_temp_x10")
+),
 
-                "hdc_hum_x10":
-                    data.get("hdc_hum_x10"),
+"hdc_hum_x10": (
+    None if data.get("hdc_hum_x10") == 65535
+    else data.get("hdc_hum_x10")
+),
 
-                "light_raw":
-                    data.get("light_raw"),
+"light_raw": (
+    None if data.get("light_raw") == 65535
+    else data.get("light_raw")
+),
 
-                "bmp_temp_x10":
-                    data.get("bmp_temp_x10"),
+"bmp_temp_x10": (
+    None if data.get("bmp_temp_x10") == -32768
+    else data.get("bmp_temp_x10")
+),
 
-                "pressure_pa":
-                    data.get("pressure_pa"),
-
+"pressure_pa": (
+    None if data.get("pressure_pa") == -2147483648
+    else data.get("pressure_pa")
+),
                 "raw_payload":
                     payload,
             }
