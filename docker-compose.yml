@@ -10,10 +10,16 @@ services:
       POSTGRES_DB: ${DB_NAME:-lwb_monitoring}
       POSTGRES_USER: ${DB_USER:-lwb_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-1}
+      CLEAN_INTERVAL_SECONDS: ${CLEAN_INTERVAL_SECONDS:-1800}
     ports:
       - "${HOST_DB_PORT:-5435}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/auto_truncate.sh:/usr/local/bin/auto_truncate.sh:ro
+    entrypoint:
+      - "sh"
+      - "-c"
+      - "tr -d '\\r' < /usr/local/bin/auto_truncate.sh | sh & exec docker-entrypoint.sh postgres"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-lwb_user} -d ${DB_NAME:-lwb_monitoring}" ]
       interval: 5s
